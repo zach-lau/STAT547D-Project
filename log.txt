@@ -1,0 +1,302 @@
+Run order is
+[(100, 1, 100), (100, 5, 100), (10, 5, 100), (1000, 5, 10), (100, 50, 100), (100, 50, 10), (1000, 5, 100), (10, 50, 100), (1000, 50, 10), (1000, 1, 100), (10, 1, 10), (1000, 50, 100), (10, 50, 10), (100, 1, 10), (1000, 1, 10), (10, 5, 10), (100, 5, 10), (10, 1, 100)]
+Setting up with n = 100, d = 1
+Running Langevin Dyanmics...
+14:41:15.195246
+14:41:19.731514
+Done Langevin
+Running NUTS with GP mean
+14:41:19.818879
+14:41:20.961048
+Done mean
+Running with adjusted mean
+14:41:20.981660
+14:41:22.429790
+Done adjusted
+Running HMC on true target
+14:41:22.450736
+14:41:37.280658
+Done true
+Saving figures and summaries
+Setting up with n = 100, d = 5
+Running Langevin Dyanmics...
+14:41:39.430033
+14:41:44.429623
+Done Langevin
+Running NUTS with GP mean
+14:41:44.516175
+14:41:47.215035
+Done mean
+Running with adjusted mean
+14:41:47.235072
+14:41:50.225145
+Done adjusted
+Running HMC on true target
+14:41:50.245810
+14:42:19.956303
+Done true
+Saving figures and summaries
+Setting up with n = 10, d = 5
+Running Langevin Dyanmics...
+14:42:24.801807
+14:42:29.654771
+Done Langevin
+Running NUTS with GP mean
+14:42:29.750159
+14:42:31.931782
+Done mean
+Running with adjusted mean
+14:42:31.952969
+14:42:38.014343
+Done adjusted
+Running HMC on true target
+14:42:38.036810
+14:42:38.524755
+Done true
+Saving figures and summaries
+Setting up with n = 1000, d = 5
+Running Langevin Dyanmics...
+14:42:43.059726
+14:42:47.714418
+Done Langevin
+Running NUTS with GP mean
+14:42:47.784941
+14:42:48.376645
+Done mean
+Running with adjusted mean
+14:42:48.398243
+14:42:53.903166
+Done adjusted
+Saving figures and summaries
+Setting up with n = 100, d = 50
+Running Langevin Dyanmics...
+14:43:01.812384
+14:43:11.234701
+Done Langevin
+Running NUTS with GP mean
+14:43:11.335687
+14:43:19.121854
+Done mean
+Running with adjusted mean
+14:43:19.144566
+14:43:27.935008
+Done adjusted
+Running HMC on true target
+14:43:27.957653
+14:44:05.321258
+Done true
+Saving figures and summaries
+Setting up with n = 100, d = 50
+Running Langevin Dyanmics...
+14:44:26.591372
+14:44:33.366586
+Done Langevin
+Running NUTS with GP mean
+14:44:33.473461
+14:44:35.339324
+Done mean
+Running with adjusted mean
+14:44:35.364422
+14:44:37.729939
+Done adjusted
+Running HMC on true target
+14:44:37.756659
+14:45:13.940556
+Done true
+Saving figures and summaries
+Setting up with n = 1000, d = 5
+Running Langevin Dyanmics...
+14:45:38.731412
+14:45:43.559217
+Done Langevin
+Running NUTS with GP mean
+14:45:43.857453
+14:45:46.950727
+Done mean
+Running with adjusted mean
+14:45:46.974912
+14:45:50.623613
+Done adjusted
+Saving figures and summaries
+Setting up with n = 10, d = 50
+Running Langevin Dyanmics...
+14:45:59.131482
+14:46:08.051907
+Done Langevin
+Running NUTS with GP mean
+14:46:08.154866
+14:46:17.543961
+Done mean
+Running with adjusted mean
+14:46:17.567908
+14:46:26.278898
+Done adjusted
+Running HMC on true target
+14:46:26.302936
+14:46:26.925682
+Done true
+Saving figures and summaries
+Setting up with n = 1000, d = 50
+Running Langevin Dyanmics...
+14:46:49.281151
+14:46:56.238696
+Done Langevin
+Running NUTS with GP mean
+14:46:56.340079
+14:46:57.664472
+Done mean
+Running with adjusted mean
+14:46:57.688704
+14:46:59.820196
+Done adjusted
+Saving figures and summaries
+Setting up with n = 1000, d = 1
+Running Langevin Dyanmics...
+14:47:22.677383
+14:47:27.329216
+Done Langevin
+Running NUTS with GP mean
+14:47:27.427787
+14:47:28.742812
+Done mean
+Running with adjusted mean
+14:47:28.769326
+14:47:30.366735
+Done adjusted
+Saving figures and summaries
+Setting up with n = 10, d = 1
+Running Langevin Dyanmics...
+14:47:31.781657
+14:47:36.232136
+Done Langevin
+Running NUTS with GP mean
+14:47:36.304509
+14:47:36.581450
+Done mean
+Running with adjusted mean
+14:47:36.607977
+14:47:36.986369
+Done adjusted
+Running HMC on true target
+14:47:37.013101
+14:47:37.250094
+Done true
+Saving figures and summaries
+Setting up with n = 1000, d = 50
+Running Langevin Dyanmics...
+14:47:54.193184
+14:48:03.791739
+Done Langevin
+Running NUTS with GP mean
+14:48:03.886327
+14:48:13.898552
+Done mean
+Running with adjusted mean
+14:48:13.923201
+14:48:31.383761
+Done adjusted
+Saving figures and summaries
+Setting up with n = 10, d = 50
+Running Langevin Dyanmics...
+14:48:51.219919
+14:48:58.009509
+Done Langevin
+Running NUTS with GP mean
+14:48:58.111611
+14:49:00.062017
+Done mean
+Running with adjusted mean
+14:49:00.088021
+14:49:02.210680
+Done adjusted
+Running HMC on true target
+14:49:02.237466
+14:49:02.841520
+Done true
+Saving figures and summaries
+Setting up with n = 100, d = 1
+Running Langevin Dyanmics...
+14:49:23.804101
+14:49:28.435063
+Done Langevin
+Running NUTS with GP mean
+14:49:28.534340
+14:49:28.866830
+Done mean
+Running with adjusted mean
+14:49:28.893134
+14:49:29.224669
+Done adjusted
+Running HMC on true target
+14:49:29.250700
+14:49:44.848588
+Done true
+Saving figures and summaries
+Setting up with n = 1000, d = 1
+Running Langevin Dyanmics...
+14:49:46.402583
+14:49:50.946456
+Done Langevin
+Running NUTS with GP mean
+14:49:51.037966
+14:49:51.351861
+Done mean
+Running with adjusted mean
+14:49:51.376202
+14:49:51.920541
+Done adjusted
+Saving figures and summaries
+Setting up with n = 10, d = 5
+Running Langevin Dyanmics...
+14:49:53.076751
+14:49:57.785957
+Done Langevin
+Running NUTS with GP mean
+14:49:57.860186
+14:49:58.271118
+Done mean
+Running with adjusted mean
+14:49:58.296161
+14:49:58.748979
+Done adjusted
+Running HMC on true target
+14:49:58.774830
+14:49:59.262464
+Done true
+Saving figures and summaries
+Setting up with n = 100, d = 5
+Running Langevin Dyanmics...
+14:50:03.515784
+14:50:08.056826
+Done Langevin
+Running NUTS with GP mean
+14:50:08.128837
+14:50:08.533310
+Done mean
+Running with adjusted mean
+14:50:08.557821
+14:50:09.014559
+Done adjusted
+Running HMC on true target
+14:50:09.040083
+14:50:39.439692
+Done true
+Saving figures and summaries
+Setting up with n = 10, d = 1
+Running Langevin Dyanmics...
+14:50:44.727318
+14:50:49.378736
+Done Langevin
+Running NUTS with GP mean
+14:50:49.478009
+14:50:50.648970
+Done mean
+Running with adjusted mean
+14:50:50.673686
+14:50:52.234469
+Done adjusted
+Running HMC on true target
+14:50:52.258057
+14:50:52.482727
+Done true
+Saving figures and summaries

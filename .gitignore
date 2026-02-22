@@ -1,0 +1,58 @@
+############################
+# LaTeX intermediate files
+############################
+shortex.sty
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.dvi
+*.xdv
+
+# Optional: ignore compiled PDFs
+# *.pdf
+
+############################
+# Python
+############################
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# Coverage / testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+############################
+# OS / Editor
+############################
+.DS_Store
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,430 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amsthm}
+\usepackage{shortex}
+\usepackage{csvsimple}
+\usepackage[margin=1in]{geometry}
+
+\bibliographystyle{plain}
+
+\author{Zachary Lau}
+\title{GP-MALA - STAT 547D Project Proposal}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+MCMC methods are particularly useful for estimating expectations in higher-dimensional
+parameter spaces where typical quadrature methods suffer from the
+curse of dimensionality.  However, even these algorithms may not be practical
+when the likelihood is very expensive to evalute, such as when it requires
+solving complex systems of differential equations or expensive matrix
+inversions. One alternative which has been
+proposed is to use a Gaussian Process to model the log-likelihood or log
+posterior. Our method focusses on sampling directly
+from the joint posterior model implied by the Gaussian process model of the
+log-likelihood. In this project we propose a (to the best of the author's knowledge)
+novel method for sampling from the approximate model implied by the GP based on the
+Metropolis Adjusted Langevin Algorithm (MALA). Instead of using function
+evaluations, the method uses samples from the GP posterior to obtain likelihood
+values and gradients. We will (hopefully) show that this leads to unbiased
+estimates of posterior quanities of interest with respect to our proposed joint
+model, and compare its performance to simpler but potentially biased schemes.
+
+\end{abstract}
+
+\section{Introduction and Background}
+\subsection{Likelihood free and surrogate likelihood methods}
+The challenge of performing Bayesian inference with intractable or expensive
+likelihood functions has been approached from multiple directions in the past.
+Rasmussen \cite{rasmussen2003gaussian} suggests making proposals using HMC
+applied to a surrogate model of the log posterior and then performing a Metropolis-Hastings
+accept-reject with an evaluations of the true likelihood. However, it is not
+clear that this scheme has the correct stationary distribution. Christen \& Fox
+\cite{Christen01122005} introduced delayed acceptance MCMC which similarly
+makes proposals using a surrogate, but uses a pre-screening step to ensure that
+the chain targets the correct distribution. On the other hand, likelihood free
+approaches attempt to perform bayesian inference when the likelihood function
+is not available or tractable, but simulations can be made from the data
+generating process. One such framework is Approximate Bayesian Computation
+(ABC) \cite{beaumont2019approximate}. More recently Gutmann \& Corander 
+\cite{JMLR:v17:15-017} have considered applying Bayesian optimization to improve
+simulation efficiency. Finally Stuart et al. \cite{stuart2018posterior} discuss
+error bounds on the distance between the true posterior and a Gaussian Process
+approximation of the posterior in terms of Hellinger distance. Our work differs
+from that of Rasmussen and Christen \& Fox in that we focus on sampling directly
+from the surrogate model without a correction step. Furthermore, it differs from
+ABC and likelihood free methods in that the surrogate model is based on true
+evaluations of the likelihood.
+% TODO - comparison with ABC
+\subsection{Gaussian Processes}
+Gaussian processes (GP) modelling is a type of non-parametric Bayesian model. It can
+be viewed as placing a Gaussian process prior on a function, i.e. observations 
+$y_1, y_2, \ldots, y_n$ at any finite set of input points $x_1, x_2, \ldots x_n$
+are distributed according to a multivariate normal distribution.  Via the
+Kolmogorov extension theorem, such a prior is fully specified by a mean function
+$\mu(x)$ and the covariance function $k(x,x')$. Given a set of training points
+$x_1, \ldots, x_n$, inference at a set of test points $x'_1, \ldots, x'_m$ is
+found by computing the conditional distribution of $y_1', \ldots,  y'_m$ given 
+$y_1, \ldots, y_n$. The resulting poisterior distribution sees
+$[y'_1, \ldots, y'_m]^\top \sim \Norm(\mu', K')$ where $\mu'$ and $K'$ are
+given by the inference equations \cite{rasmussen2006gaussian}
+\begin{align}
+    \mu' &= \mu + k^\ast (K+\sigma^2 I)^{-1} \vec y \\
+    K' &= k^{\ast\ast} - k^\ast (K + \sigma^2 I)^{-1} \vec y
+\end{align}
+Where $\mu$ represents the prior mean, $k^{\ast\ast}_{ij} = k(x'_i, x'_j)$ 
+gives the prior covariance, $k^\ast_{ij} = k(x'_i, x_j)$ the cross-covariance
+and $\vec y_i = y_i$ the vector of observations, and $\sigma^2$ represents \iid
+observational noise (even when there is no noise, a small amount of noise may be
+included for numerical stability of the inverse). An important feature of
+Gaussian process modelling is that in addition to giving estimates at new test
+points through the posterior mean, it also quantifies uncertainty through
+the posterior covarianace.
+
+We will consider GP's from two perspectives. Firstly bayesian
+hyperparameter inference in GP's provides a good test case where the likelihood
+evaluation can be prohibitive. Secondly GP's can themselves be used as a
+surrogate model for the likelihood that quantifies uncertainty at unobserved
+locations.
+
+\subsection{Hyper-parameter inference for Gaussian Processes}
+Typically the covariance function used for GP inference belongs to a parametric
+family. For example, the squared-exponential family in one-dimension has the form
+$k(x,x') = \sigma_f^2 \exp\left(-\frac 1 2 \left( \frac{x-x'}{\ell} \right)^2 \right)$
+with hyperparametgers $\sigma^2_f$ and $\ell$. It is most common to choose these
+parameters given the data by maximizing the so-called log-marginal likelihood,
+i.e. the likelihood of the observations after marginalizing over the unobserved
+latent function. With observation noise, this function becomes
+\begin{align}
+    l(\theta) &= -\frac 1 2 y ^\top (K + \sigma^2 I)^{-1} y - \frac 1 2 \log |K+\sigma^2 I| 
+    - \frac n 2 \log(2\pi)
+\end{align}
+
+An alternative to using MLE is to place a prior over the hyperparameters, and
+then perform inference by averaging over the hyperparamter posterior. Our target
+then becomes
+\begin{align}
+    \log p(\theta|y) &= \log p(\theta ) -\frac 1 2 y ^\top (K + \sigma^2 I)^{-1} y - \frac 1 2 \log |K+\sigma^2 I| 
+    - \frac n 2 \log(2\pi)
+\end{align}
+Some of the major challenges with sampling from such a distribution include
+multi-modality and the computational cost of computing matrix solves and
+determinants. The latter can be a particular challenge in the case of GP's with
+large numbers of observations, particularly since their cost scales as 
+$O(n^3)$.
+
+\section{Algorithms}
+\subsection{Set up and motivation}
+Firstly we consider the case where we have some Bayesian inference problem with
+a tractable but expensive likelihood function. Gradient information may or may
+not be available. The first premise of this work, who's validity may be explored
+in future work, is that in the expensive likelihood regime Bayesian inference
+should be separated into two parts \begin{itemize} \item \emph{Likelihood model
+building}: judicious evaluations of the likelihood function to provide the most
+useful understanding of the likelihood function \item \emph{Sampling}:
+Generation of samples from the posterior implied \emph{by our model}
+\end{itemize}
+
+In this work we focus on the second phase, leaving to future work the 
+evaluation of the first. Concretely, suppose that we have some pre-existing set
+of log-likelihood evaluations $l(\theta_1), \ldots, l(\theta_m)$
+(hopefully judiciously chosen). We construct a a GP model of the function 
+$l$ over the parameter space, call this model $\mathcal M$. Our work here
+explores the problem of sampling from $\theta$ given a model of its likelihood
+\emph{that incorporates uncertainty}.
+
+\subsection{Mean estimation}
+The most obvious way to sample from the GP surrogate model is to use
+to use the posterior mean as the log likelihood. That is, if the posterior mean
+is given by $\mu(\theta)$ we take $l(\theta) = \mu(\theta)$ so that the
+likelihood is given by
+$\mathcal L(\theta) = \exp(\mu(\theta))$. Another method is is to consider the posterior
+mean of $f$ itself. Noting that $f(\theta)$ is marginally log-normal it has
+expectation
+$\E f(\theta) = \exp\left(\mu(\theta) + \frac 1 2 \sigma^2(\theta) \right)$,
+giving log-likelihood $l(\theta) = \mu(\theta) + \frac 1 2 \sigma^2 (\theta)$.
+This second estimate takes into account uncertainty, but only insofar as it
+affects the mean. The posteriors arising from such likelihoods can be
+targeted using off the shelf samplers like NUTS.
+
+\subsection{Uncorrected Langevin Dynamics}
+The third method we propose to analyze involves taking \emph{samples} from the
+gradient instead of using a fixed surrogate model in order to reflect
+uncertainty in the surrogate model. Importantly, we note that the gradient of a
+GP and the function itself are jointly still a GP, so sampling amounts to
+sampling from a GP posterior. We restrict ourselves to uncorrected langevin
+dynanamics because this requires only a single sample of the gradient. Sampling
+a longer HMC trajectory would be significantly more expensive because each
+gradient sample would need to be taken conditional on the previous samples. With
+sample $i$ requiring a roughly $O(i^2)$ block matrix update to the inverse, the
+total trajectory cost would be roughly $O(L^3)$. On the other hand, given a
+precomputed inverse that is shared amongst all points, a single
+Langevin step with a model built on $m$ true evaluations requires only a 
+single $O(m^2)$ matrix multiplication.
+
+\subsection{Theoretical optimum}
+As discussed in \cite{stuart2018posterior}, the theoretical optimum
+distribution, in a sense, to sample from would be the \emph{joint} distribution
+over $f$ and $\theta$, i.e. we the model defined by the following generative
+process.  \begin{align} \log f &\sim \mathcal M \\ \theta &\sim
+\frac{p_0(\theta)f(\theta)}{\mathcal Z(f)} \end{align} Unfortunately, sampling
+from this joint distribution is a difficult problem that our proposed methods
+only approximate in the well informed case.
+
+Firstly we consider our Langevin dynamics inspired sampler. This can be seen as
+an approximate Metropolis-within-Gibb's sampler where the marginal $f | \theta$
+is approximated by the $GP$ posterior. Indeed in the limit of small step sizes
+our update of $\theta$ preserves the target distribution. However,
+a true conditional update of $f$ would need to preserve (see derivation in Appendix)
+\begin{align}
+    p(f|\theta) &= \frac{p(f, \theta)}{p(\theta)} \\
+    &\propto \frac{p(f)f(\theta)}{\mathcal Z(f)}
+\end{align}
+
+On the other hand, if we approximate $\mathcal Z(f)$ as a constant, we recover
+the log mean sampler $\hat l(\theta) = \mu(\theta) + \frac 1 2 \sigma^2 (\theta)$.
+To see this note that integrating our joint distribution over $f$ we find
+\begin{align}
+    p(\theta) &= \int p(f, \theta) df \\
+    & \propto \int p_0(\theta)f(\theta)p(f) df \\
+    &= p_0(\theta)\E f(\theta) \\
+    &= p_0(\theta)\exp\left(\mu(\theta) + \frac 1 2 \sigma^2(\theta)\right)
+\end{align}
+
+Thus none of our samplers targets the ``correct'' stationary distribution;
+finding a sampling mechanism that is able to account for the $\mathcal Z(f)$
+factor remains an open problem. However, we note that heuristically given more
+evaluations of the true likelihood (and hence less variane in our model) these
+constant approximations will be approximately true as the influence of any
+one sample diminishes.
+
+% This gives joint distribution $p(f, \theta) = \frac{p_0(\theta)f(\theta)M(f)}{\mathcal Z(f)}$.
+% Our challenge is to sample from the marginal distribution of $\theta$.
+% At this point we make a few remarks to justify our choice of model, and
+% highlight the complexity of the problem.
+
+% \begin{remark}
+%     Directly modelling the likelhood as opposed to the log-likelihood would not
+%     give a valid likelihood function.
+% \end{remark}
+
+% Since the normal distribution has infinite support, such a model would have a
+% non-zero probability of drawing a negative likelihood.
+
+% \begin{remark}
+%     Using the GP mean as a surrogate model ignores the normalizing constant
+%     $\mathcal Z(f)$
+% \end{remark}
+
+% There are two problems with using the GP mean as a surrogate model. Firstly,
+% the motivation is flawed since $f$ is log-normal, and secondly as seen from
+% the generative model above it ignores the effect of the normalizing constant.
+
+\section{Experiments}
+We test each of the three methods 
+
+\section{Discussion}
+In this project we provide a renewed exploration of the idea of using surrogate
+models of the likelihood function in Bayesian inference, particularly with a
+focus on Bayesian inference for Gaussian process hyperparameter learning. Our
+proposed algorithm uses samples of the gradient in an attempt to account for
+surrogate model uncertainty. While it has experimental and theoretical
+shortfalls, we hope this opens the door for future research on understanding how
+surrogate models which quanntify uncertainty can be used in Bayesian inference.
+
+Specifically we envision two areas of future
+research. Firstly, in a similar vein to that discussed in this project, future
+work may include analysis of new algorithms and stochastic surrogate models
+where targetting the joint distribution over the model and the inference
+paramter becomes feasible.  A second future vein which has not been explored by
+this work includes exploiting surrogate models' measures of uncertainty to guide
+future true likelihood evaluations in a manner similar to Bayesian optimization
+and active learning.
+
+\bibliography{references}
+
+\appendix
+\section{Target conditional}
+Given the generative model, we get joint distribution
+\begin{align}
+    p(f, \theta) &= p(f)\frac{p_0(\theta)f(\theta)}{\mathcal Z(f)}
+\end{align}
+Where the normalizing constant
+$\mathcal Z(f) = \int p_0(\theta)f(\theta) d\theta$.
+This gives the $\theta$ marginal of 
+\begin{align}
+    p(\theta) &= \int p(f) \frac{p_0(\theta)f(\theta)}{\mathcal Z(f)} df \\
+    &= p_0(\theta)  \int p(f) \frac{f(\theta)}{\mathcal Z(f)} df
+\end{align}
+And then the conditional is
+\begin{align}
+    p(f | \theta) \propto \frac{p(f)f(\theta)}{\mathcal Z(f)}
+\end{align}
+Intuitively this skews $f$ higher at the current value of $\theta$, but this
+scaling is tempered by the subsequent increase in the normalizing constant. If
+we assume that $\mathcal Z(f)$ is relatively constant, then sampling
+$f(\theta) | \theta$ corresponds to sampling from
+$p(y) \propto y \log \Norm(\mu, \sigma^2)$ which corresponds to the tilted
+log normal $\log \Norm(\mu + \sigma^2, \sigma^2)$.
+
+\section{Algorithms}
+Algorithm \ref{alg:unadjusted} shows the algoritm we use for uncorrected
+Langevin dynamics using GP sampled gradients. In implementation step size is
+scaled down proportional to the standard deviation of observed log-likelihoods.
+\begin{algorithm}
+\caption{Unadjusted Langevin for GP Likelihood}
+\label{alg:unadjusted}
+\begin{algorithmic}
+    \Require Stepsize $\tau$, Iterations $N$
+    \State Compute $K$ the covariance amongst train points
+    \State $Ki \gets (K+\sigma^2 I)^{-1}$
+    \State Initialize $\theta \sim p_0(\theta)$
+    \For{$i=0$ to N}
+        % \State $k^\ast \gets$ cross covariance of gradients with train points
+        % \State $k^{\ast\ast} \gets$ covariance of test points
+        % \State $kKi \gets k^{\ast\top} Ki$
+        % \State $\mu \gets kKi y$
+        % \State $k \gets k^{\ast\ast} - k^\ast (K + \sigma^2 I) k^{\ast\top}$
+        \State Sample $\nabla \log f (\theta)$ from GP model
+        \State Sample $\xi \sim \Norm(0,1)$
+        \State $\theta \gets \theta + \tau \grad\log f(\theta) + \sqrt{2\tau} \xi$
+        \State Save $\theta$
+    \EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\section{Figures and Tables}
+% General behaviour not that bad
+
+\begin{figure}[H]
+    \centering
+    
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/adjusted/pairs.png}
+        \caption{First subplot}
+        \label{fig:pair_adjusted}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/gold/pairs.png}
+        \caption{Second subplot}
+        \label{fig:pair_gold}
+    \end{subfigure}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/langevin/pairs.png}
+        \caption{Second subplot}
+        \label{fig:pair_langevin}
+    \end{subfigure}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/mean/pairs.png}
+        \caption{Second subplot}
+        \label{fig:pair_mean}
+    \end{subfigure}
+    \caption{Main figure caption}
+    \label{fig:pair}
+\end{figure}
+
+% Traceplots
+
+\begin{figure}[H]
+    \centering
+    
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/adjusted/trace.png}
+        \caption{First subplot}
+        \label{fig:pair_adjusted}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/gold/trace.png}
+        \caption{Second subplot}
+        \label{fig:pair_gold}
+    \end{subfigure}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/langevin/trace.png}
+        \caption{Second subplot}
+        \label{fig:pair_langevin}
+    \end{subfigure}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-5-100-123/mean/trace.png}
+        \caption{Second subplot}
+        \label{fig:pair_mean}
+    \end{subfigure}
+    \caption{Main figure caption}
+    \label{fig:trace}
+\end{figure}
+
+%Summary stats
+\begin{table}[htbp]
+\centering
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+Parameter & mean & sd & hdi\_3\% & hdi\_97\% & mcse\_mean & mcse\_sd & ess\_bulk & ess\_tail & r\_hat \\
+\midrule
+theta[0] & -0.01 & 1.00 & -1.92 & 1.84 & 0.01 & 0.01 & 23649.0 & 20483.0 & 1.00 \\
+theta[1] & -2.33 & 4.30 & -5.00 & 4.99 & 2.12 & 1.16 & 7.0 & 26.0 & 1.60 \\
+theta[2] & -0.17 & 4.84 & -5.00 & 4.99 & 2.40 & 0.12 & 6.0 & 91.0 & 1.76 \\
+theta[3] & 4.76 & 1.02 & 4.79 & 5.00 & 0.26 & 0.64 & 23.0 & 23.0 & 1.11 \\
+theta[4] & 2.68 & 3.96 & -4.96 & 5.00 & 1.88 & 1.24 & 7.0 & 23.0 & 1.53 \\
+theta[5] & 0.56 & 2.66 & -2.26 & 5.00 & 1.32 & 0.72 & 5.0 & 23.0 & 2.42 \\
+\bottomrule
+\end{tabular}
+\caption{Posterior summary statistics for adjusted mean target sampled
+with NUTS}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+Parameter & mean & sd & hdi\_3\% & hdi\_97\% & mcse\_mean & mcse\_sd & ess\_bulk & ess\_tail & r\_hat \\
+\midrule
+theta[0] & -0.10 & 1.03 & -1.79 & 1.97 & 0.15 & 0.07 & 49.0 & 101.0 & 1.05 \\
+theta[1] & 3.52 & 2.23 & -0.85 & 5.00 & 1.07 & 0.61 & 7.0 & 33.0 & 1.53 \\
+theta[2] & 2.03 & 1.77 & -1.45 & 4.44 & 0.76 & 0.36 & 8.0 & 73.0 & 1.51 \\
+theta[3] & 2.43 & 1.84 & -1.21 & 4.47 & 0.84 & 0.46 & 7.0 & 32.0 & 1.52 \\
+theta[4] & 1.16 & 1.22 & -1.43 & 3.32 & 0.39 & 0.16 & 11.0 & 42.0 & 1.29 \\
+theta[5] & -2.27 & 4.22 & -5.00 & 4.89 & 2.02 & 1.04 & 7.0 & 42.0 & 1.50 \\
+\bottomrule
+\end{tabular}
+\caption{Posterior summary statistics with GP sampled gradients}
+\end{table}
+
+% Boundary seeking behaviour of adjusted
+\begin{figure}[H]
+    \centering
+    
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-1-10-123/mean.png}
+        \caption{First subplot}
+        \label{fig:mean}
+    \end{subfigure}
+    \begin{subfigure}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-1-10-123/sd.png}
+        \caption{Second subplot}
+        \label{fig:sd}
+    \end{subfigure}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-1-10-123/logmean.png}
+        \caption{Second subplot}
+        \label{fig:logmean}
+    \end{subfigure}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{10-1-10-123/adjusted/pairs.png}
+        \caption{Second subplot}
+        \label{fig:boundary_pairs}
+    \end{subfigure}
+    \caption{Main figure caption}
+    \label{fig:main}
+\end{figure}
+
+\end{document}
