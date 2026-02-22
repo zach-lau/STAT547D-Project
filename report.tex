@@ -7,28 +7,28 @@
 \bibliographystyle{plain}
 
 \author{Zachary Lau}
-\title{GP-MALA - STAT 547D Project Proposal}
+\title{GP-Ouroboros: Using Gaussian Processes to model the log-likelihood in Bayesian Hyperparamter Inference for Gaussian Processes}
 
 \begin{document}
 \maketitle
 \begin{abstract}
-MCMC methods are particularly useful for estimating expectations in higher-dimensional
-parameter spaces where typical quadrature methods suffer from the
-curse of dimensionality.  However, even these algorithms may not be practical
-when the likelihood is very expensive to evalute, such as when it requires
-solving complex systems of differential equations or expensive matrix
-inversions. One alternative which has been
-proposed is to use a Gaussian Process to model the log-likelihood or log
-posterior. Our method focusses on sampling directly
-from the joint posterior model implied by the Gaussian process model of the
-log-likelihood. In this project we propose a (to the best of the author's knowledge)
-novel method for sampling from the approximate model implied by the GP based on the
-Metropolis Adjusted Langevin Algorithm (MALA). Instead of using function
-evaluations, the method uses samples from the GP posterior to obtain likelihood
-values and gradients. We will (hopefully) show that this leads to unbiased
-estimates of posterior quanities of interest with respect to our proposed joint
-model, and compare its performance to simpler but potentially biased schemes.
-
+Markov Chain Monte Carlo (MCMC) methods are particularly useful for estimating
+expectations in higher-dimensional parameter spaces. However, these algorithms may
+not be practical when the likelihood is very expensive to evalute. This problem
+can occur in Bayesian inference for large Gaussian Process (GP) hyperparameters,
+which involves expensive matrix inversions. One alternative which has been
+proposed for expensive likelihoods is to use the posterior mean of a Gaussian
+Process to model the log-likelihood or log posterior.  However, just using the
+mean ignores the variance term also provided by GP's. We explore two
+alternatives ways of incorporating this variance term; firstly by incorporating
+it in the mean of a log normal distribution (we term this the adjusted mean),
+and secondly by sampling gradients instead of evaluating them deterministically.
+Our experimental and theoretical results show that neither method is entirely
+satisfactory. The adjusted mean target displays unhelpful boundary seeking
+behaviour, while directly sampling gradients turns out to be theoretically
+unsound. We hope that in the future the failure of these algorithms can be
+learned from so that we can properly account for uncertxainty in stochastic
+surrogate modelling of the log-likelhood for Bayesian inference.
 \end{abstract}
 
 \section{Introduction and Background}
@@ -114,44 +114,46 @@ $O(n^3)$.
 
 \section{Algorithms}
 \subsection{Set up and motivation}
-Firstly we consider the case where we have some Bayesian inference problem with
-a tractable but expensive likelihood function. Gradient information may or may
-not be available. The first premise of this work, who's validity may be explored
-in future work, is that in the expensive likelihood regime Bayesian inference
-should be separated into two parts \begin{itemize} \item \emph{Likelihood model
-building}: judicious evaluations of the likelihood function to provide the most
-useful understanding of the likelihood function \item \emph{Sampling}:
-Generation of samples from the posterior implied \emph{by our model}
+Consider a Bayesian inference problem with expensive likelihood such as the GP
+problem desribed above. The first premise of this work, who's validity may be explored
+in future work, is that in the expensive likelihood regime, Bayesian inference
+should be separated into two parts
+\begin{itemize}
+    \item \emph{Likelihood model building}: judicious evaluations of the
+    likelihood function to provide the most useful understanding of the
+    likelihood function
+    \item \emph{Sampling}: Generation of samples from the posterior implied
+    \emph{by our model}
 \end{itemize}
 
-In this work we focus on the second phase, leaving to future work the 
-evaluation of the first. Concretely, suppose that we have some pre-existing set
-of log-likelihood evaluations $l(\theta_1), \ldots, l(\theta_m)$
-(hopefully judiciously chosen). We construct a a GP model of the function 
-$l$ over the parameter space, call this model $\mathcal M$. Our work here
-explores the problem of sampling from $\theta$ given a model of its likelihood
-\emph{that incorporates uncertainty}.
+% In this work we focus on the second phase, leaving to future work the 
+% evaluation of the first. Concretely, suppose that we have some pre-existing set
+% of log-likelihood evaluations $l(\theta_1), \ldots, l(\theta_m)$
+% (hopefully judiciously chosen). We construct a a GP model of the function 
+% $l$ over the parameter space, call this model $\mathcal M$. Our work here
+% explores the problem of sampling from $\theta$ given a model of its likelihood
+% \emph{that incorporates uncertainty}.
 
 \subsection{Mean estimation}
 The most obvious way to sample from the GP surrogate model is to use
 to use the posterior mean as the log likelihood. That is, if the posterior mean
-is given by $\mu(\theta)$ we take $l(\theta) = \mu(\theta)$ so that the
+is given by $\mu(\theta)$ we take $\hat l(\theta) = \mu(\theta)$ so that the
 likelihood is given by
 $\mathcal L(\theta) = \exp(\mu(\theta))$. Another method is is to consider the posterior
 mean of $f$ itself. Noting that $f(\theta)$ is marginally log-normal it has
 expectation
 $\E f(\theta) = \exp\left(\mu(\theta) + \frac 1 2 \sigma^2(\theta) \right)$,
-giving log-likelihood $l(\theta) = \mu(\theta) + \frac 1 2 \sigma^2 (\theta)$.
+giving log-likelihood $\hat l(\theta) = \mu(\theta) + \frac 1 2 \sigma^2 (\theta)$.
 This second estimate takes into account uncertainty, but only insofar as it
 affects the mean. The posteriors arising from such likelihoods can be
-targeted using off the shelf samplers like NUTS.
+targeted using off the shelf samplers like NUTS \cite{hoffman2011nouturnsampleradaptivelysetting}.
 
 \subsection{Uncorrected Langevin Dynamics}
 The third method we propose to analyze involves taking \emph{samples} from the
 gradient instead of using a fixed surrogate model in order to reflect
 uncertainty in the surrogate model. Importantly, we note that the gradient of a
 GP and the function itself are jointly still a GP, so sampling amounts to
-sampling from a GP posterior. We restrict ourselves to uncorrected langevin
+sampling from a GP posterior. We restrict ourselves to uncorrected Langevin
 dynanamics because this requires only a single sample of the gradient. Sampling
 a longer HMC trajectory would be significantly more expensive because each
 gradient sample would need to be taken conditional on the previous samples. With
@@ -161,11 +163,11 @@ precomputed inverse that is shared amongst all points, a single
 Langevin step with a model built on $m$ true evaluations requires only a 
 single $O(m^2)$ matrix multiplication.
 
-\subsection{Theoretical optimum}
-As discussed in \cite{stuart2018posterior}, the theoretical optimum
-distribution, in a sense, to sample from would be the \emph{joint} distribution
-over $f$ and $\theta$, i.e. we the model defined by the following generative
-process.  \begin{align} \log f &\sim \mathcal M \\ \theta &\sim
+\subsection{Theoretical accuracy}
+As discussed in \cite{stuart2018posterior}, the theoretical optimum model, in
+the sense of Hellinger distance, to sample from would be the \emph{joint}
+distribution over $f$ and $\theta$, i.e. we the model defined by the following
+generative process.  \begin{align} \log f &\sim \mathcal M \\ \theta &\sim
 \frac{p_0(\theta)f(\theta)}{\mathcal Z(f)} \end{align} Unfortunately, sampling
 from this joint distribution is a difficult problem that our proposed methods
 only approximate in the well informed case.
@@ -190,12 +192,14 @@ To see this note that integrating our joint distribution over $f$ we find
     &= p_0(\theta)\exp\left(\mu(\theta) + \frac 1 2 \sigma^2(\theta)\right)
 \end{align}
 
-Thus none of our samplers targets the ``correct'' stationary distribution;
-finding a sampling mechanism that is able to account for the $\mathcal Z(f)$
-factor remains an open problem. However, we note that heuristically given more
-evaluations of the true likelihood (and hence less variane in our model) these
-constant approximations will be approximately true as the influence of any
-one sample diminishes.
+Thus none of our samplers targets the ``correct'' stationary distribution, with
+the former not accounting for the $f(\theta)$ or $\mathcal Z(f)$ term, and the
+latter failing to account for the $\mathcal Z(f)$ term.
+
+% However, we note that heuristically given more
+% evaluations of the true likelihood (and hence less variane in our model) these
+% constant approximations will be approximately true as the influence of any
+% one sample diminishes.
 
 % This gives joint distribution $p(f, \theta) = \frac{p_0(\theta)f(\theta)M(f)}{\mathcal Z(f)}$.
 % Our challenge is to sample from the marginal distribution of $\theta$.
@@ -220,25 +224,46 @@ one sample diminishes.
 % the generative model above it ignores the effect of the normalizing constant.
 
 \section{Experiments}
-We test each of the three methods 
+Each method (GP mean, adjusted mean, sampled gradients) was tested for inference
+problems on the cartesian product of $n \in \{10, 100, 1000\}$, $d \in \{1, 5,
+50\}$ and $m \in \{10, 100\}$ where $n$ is the number of observations in the
+base model, $d$ the dimensionality of the base model and $m$ the number of
+observations to build the surrogate model. For $n \in \{10, 100\}$ the results
+were compared to using the true log-likelihood. Implementation was in Python and
+Stan \cite{standevstancore} for NUTS. Full code, results and details of the
+experiements can be found on
+\href{https://github.com/zach-lau/STAT547D-Project}{Github}. The Langevin
+sampler behaves overall poorly. This is not surpising in high dimensions given
+its local behaviour, however even in moderate dimension ($d=5$) it displays
+pathological behaviour (see Figure \ref{fig:pair}). This may be explained by the
+fact that it does not target the correct joint distribution. The most
+interesting result from the adjusted mean sampler is its boundary seeking
+behavour (see Fig \ref{fig:adjusted_explanation}). The long right-tail of the
+log-normal distribution encourages it to sample from areas of high-variance even
+when this is of detrimant to its qualitative results. We hypothesize that this
+is related to target's failure to account for the normalizing factor $\mathcal
+Z(f)$ which tempers the strength of the upper tail.
 
-\section{Discussion}
-In this project we provide a renewed exploration of the idea of using surrogate
-models of the likelihood function in Bayesian inference, particularly with a
-focus on Bayesian inference for Gaussian process hyperparameter learning. Our
-proposed algorithm uses samples of the gradient in an attempt to account for
-surrogate model uncertainty. While it has experimental and theoretical
-shortfalls, we hope this opens the door for future research on understanding how
-surrogate models which quanntify uncertainty can be used in Bayesian inference.
+\section{Conclusion}
+In this project we provide a renewed exploration of the idea of using stochastic
+surrogate models of the likelihood function in Bayesian inference, particularly
+with a focus on Bayesian inference for Gaussian process hyperparameter learning.
+We propose two basic algorithms to incorporate uncertainty: incorporating
+through the mean of a log-normal or through sampling. While both methods have
+experimental and theoretical shortfalls, we hope this opens the door for future
+research on understanding how surrogate models which quantify uncertainty can
+be used in Bayesian inference. In particular, another promising area of research
+we have not yet considered is how to acquire the log-likelhood evaluations used to
+build the surrogate model in the first place.
 
-Specifically we envision two areas of future
-research. Firstly, in a similar vein to that discussed in this project, future
-work may include analysis of new algorithms and stochastic surrogate models
-where targetting the joint distribution over the model and the inference
-paramter becomes feasible.  A second future vein which has not been explored by
-this work includes exploiting surrogate models' measures of uncertainty to guide
-future true likelihood evaluations in a manner similar to Bayesian optimization
-and active learning.
+% Specifically we envision two areas of future
+% research. Firstly, in a similar vein to that discussed in this project, future
+% work may include analysis of new algorithms and stochastic surrogate models
+% where targetting the joint distribution over the model and the inference
+% paramter becomes feasible.  A second future vein which has not been explored by
+% this work includes exploiting surrogate models' measures of uncertainty to guide
+% future true likelihood evaluations in a manner similar to Bayesian optimization
+% and active learning.
 
 \bibliography{references}
 
@@ -296,33 +321,40 @@ scaled down proportional to the standard deviation of observed log-likelihoods.
 % General behaviour not that bad
 
 \begin{figure}[H]
-    \centering
-    
+    \centering 
     \begin{subfigure}{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/adjusted/pairs.png}
-        \caption{First subplot}
+        \caption{Adjusted mean}
         \label{fig:pair_adjusted}
     \end{subfigure}
     \begin{subfigure}{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/gold/pairs.png}
-        \caption{Second subplot}
+        \caption{``True'' likelihood}
         \label{fig:pair_gold}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/langevin/pairs.png}
-        \caption{Second subplot}
+        \caption{Langevin}
         \label{fig:pair_langevin}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/mean/pairs.png}
-        \caption{Second subplot}
+        \caption{GP Mean}
         \label{fig:pair_mean}
     \end{subfigure}
-    \caption{Main figure caption}
+    \caption{Pair plots for different methods of sampling from GP surrogate
+    model where the base model has $n=10$ observations in $d=5$ dimensions and
+    the surrogate log-likelhood model is built on $m=100$ likelihood
+    evaluations. We can see the boundary seeking behaviour inherent in using the
+    adjusted mean sampler. Furthermore the Langevin dynamics based sampler
+    displays a combination of poor mixig and bizarrely invents multimodality.
+    Note that due to the $O(n^3)$ cost of evaluating the true likelihood and
+    $O(m^2)$ of evaluating the surrogate it may sometimes make sense to have $m
+    > n$, although this particular example is somewhat unrealistic.}
     \label{fig:pair}
 \end{figure}
 
@@ -334,28 +366,29 @@ scaled down proportional to the standard deviation of observed log-likelihoods.
     \begin{subfigure}{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/adjusted/trace.png}
-        \caption{First subplot}
+        \caption{Adjusted mean}
         \label{fig:pair_adjusted}
     \end{subfigure}
     \begin{subfigure}{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/gold/trace.png}
-        \caption{Second subplot}
+        \caption{``True'' likelihood}
         \label{fig:pair_gold}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/langevin/trace.png}
-        \caption{Second subplot}
+        \caption{Langevin}
         \label{fig:pair_langevin}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/mean/trace.png}
-        \caption{Second subplot}
+        \caption{GP Mean}
         \label{fig:pair_mean}
     \end{subfigure}
-    \caption{Main figure caption}
+    \caption{Traceplots and marginals of different algorithms for sampling
+    from GP surrogate with $n=10$, $d=5$ and surrogate model based on $m=100$.}
     \label{fig:trace}
 \end{figure}
 
@@ -375,7 +408,10 @@ theta[5] & 0.56 & 2.66 & -2.26 & 5.00 & 1.32 & 0.72 & 5.0 & 23.0 & 2.42 \\
 \bottomrule
 \end{tabular}
 \caption{Posterior summary statistics for adjusted mean target sampled
-with NUTS}
+with NUTS. Boundary effects
+induce multi-modality which makes this problem particularly hard to deal with
+for the sampler, as reflected in the ESS and Rhat.}
+\label{tab:adjusted}
 \end{table}
 
 \begin{table}[htbp]
@@ -392,39 +428,46 @@ theta[4] & 1.16 & 1.22 & -1.43 & 3.32 & 0.39 & 0.16 & 11.0 & 42.0 & 1.29 \\
 theta[5] & -2.27 & 4.22 & -5.00 & 4.89 & 2.02 & 1.04 & 7.0 & 42.0 & 1.50 \\
 \bottomrule
 \end{tabular}
-\caption{Posterior summary statistics with GP sampled gradients}
+\caption{Posterior summary statistics with GP sampled gradients. Mixing is poor
+due to random walk behaviour.}
+\label{tab:sampled}
 \end{table}
 
+\
 % Boundary seeking behaviour of adjusted
-\begin{figure}[H]
+\begin{figure}[h]
     \centering
     
     \begin{subfigure}{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-1-10-123/mean.png}
-        \caption{First subplot}
+        \caption{GP mean of surrogate model}
         \label{fig:mean}
     \end{subfigure}
     \begin{subfigure}{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-1-10-123/sd.png}
-        \caption{Second subplot}
+        \caption{Standard deviation of surrogate model}
         \label{fig:sd}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-1-10-123/logmean.png}
-        \caption{Second subplot}
+        \caption{Adjusted mean of surrogate model}
         \label{fig:logmean}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-1-10-123/adjusted/pairs.png}
-        \caption{Second subplot}
+        \caption{Samples taken with NUTS}
         \label{fig:boundary_pairs}
     \end{subfigure}
-    \caption{Main figure caption}
-    \label{fig:main}
+    \caption{The GP mean and standard deviation for a surrogate model of the
+    likelihood for a base model with $n=10$ observations in $d=1$ dimension with
+    $m=10$ likelihood evaluations. The likelihood evaluations used to build
+    the surrogate model are shown in red. The effective likelihood has higher
+    density in both areas of higher mean and standard deviation.}
+    \label{fig:adjusted_explanation}
 \end{figure}
 
 \end{document}
