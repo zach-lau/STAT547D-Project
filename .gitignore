@@ -56,3 +56,8 @@ htmlcov/
 .vscode/
 *.swp
 *.swo
+
+# Stan binaries
+lml
+mean
+lognorm
