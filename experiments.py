@@ -78,7 +78,7 @@ def run(n, d, m, seed, warmup = 1000, iterations = 1000, iterations_true = None)
     if iterations_true is None:
         iterations_true = iterations
     print(f"Setting up with {n = }, {d = }")
-    name = f"{n}-{d}-{m}-{seed}"
+    name = os.path.join("results",f"{n}-{d}-{m}-{seed}")
     os.makedirs(name, exist_ok=True)
     names = ["langevin", "mean", "adjusted", "gold"]
     for r in names:
