@@ -1,15 +1,14 @@
-# GP-Ouroboros: Using Gaussian Processes to model the log-likelihood in Bayesian Hyperparamter Inference for Gaussian Processes
-This project explores the use of Gaussian Processes (GP's) to model the
+# GP-Ouroboros: Using Gaussian Processes to model the log-likelihood in Bayesian Hyperparameter Inference for Gaussian Processes
+This project explores the use of Gaussian Processes (GPs) to model the
 log-marginal likelihood in fully Bayesian inference on Gaussian Processes. Our
 focus for now is on the actual sampling process itself; perhaps in the future
 we will move on to active learning for smart likelihood evaluations. The motivation
-is that for large GP's the log-marginal likelihood and its gradients can be
+is that for large GPs the log-marginal likelihood and its gradients can be
 expensive to compute. Thus we may turn to surrogate models. One such possibility
-is to use GP's themselves as the surrogate model. We consider three possible
+is to use GPs themselves as the surrogate model. We consider three possible
 algorithms for sampling where the log-likelihood is modelled by a GP
 - Using the GP mean as our surrogate model for NUTS (Stan)
 - Using an adjusted version to correct for the fact that the likelihood is log-normal
-for NUTS where log-likelihood is given by $\mu + \frac 1 2 \sigma^2$
 - Sampling gradients instead of using function evaluations in uncorrected
 Langevin dynamics
 

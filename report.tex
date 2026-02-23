@@ -3,33 +3,34 @@
 \usepackage{shortex}
 \usepackage{csvsimple}
 \usepackage[margin=1in]{geometry}
+\graphicspath{{results}}
 
 \bibliographystyle{plain}
 
 \author{Zachary Lau}
-\title{GP-Ouroboros: Using Gaussian Processes to model the log-likelihood in Bayesian Hyperparamter Inference for Gaussian Processes}
+\title{GP-Ouroboros: Using Gaussian Processes to model the log marginal
+likelihood in Bayesian hyperparameter Inference for Gaussian Processes}
 
 \begin{document}
 \maketitle
 \begin{abstract}
 Markov Chain Monte Carlo (MCMC) methods are particularly useful for estimating
-expectations in higher-dimensional parameter spaces. However, these algorithms may
-not be practical when the likelihood is very expensive to evalute. This problem
-can occur in Bayesian inference for large Gaussian Process (GP) hyperparameters,
-which involves expensive matrix inversions. One alternative which has been
-proposed for expensive likelihoods is to use the posterior mean of a Gaussian
-Process to model the log-likelihood or log posterior.  However, just using the
-mean ignores the variance term also provided by GP's. We explore two
-alternatives ways of incorporating this variance term; firstly by incorporating
-it in the mean of a log normal distribution (we term this the adjusted mean),
-and secondly by sampling gradients instead of evaluating them deterministically.
-Our experimental and theoretical results show that neither method is entirely
-satisfactory. The adjusted mean target displays unhelpful boundary seeking
-behaviour, while directly sampling gradients turns out to be theoretically
-unsound. We hope that in the future the failure of these algorithms can be
-learned from so that we can properly account for uncertxainty in stochastic
-surrogate modelling of the log-likelhood for Bayesian inference.
-\end{abstract}
+expectations in higher-dimensional parameter spaces. However, these algorithms
+may not be practical when the likelihood is very expensive to evaluate. This
+problem can occur in Bayesian inference on the hyperparameters of large Gaussian
+Processes (GP).  One alternative which has been proposed for expensive likelihoods
+is to use the posterior mean of a Gaussian Process to model the log-likelihood
+or log posterior.  However, just using the mean ignores the variance term also
+provided by GPs. We explore two alternative ways of incorporating this
+variance term; firstly by incorporating it in the mean of a log normal
+distribution (we call this the adjusted mean), and secondly by sampling
+gradients instead of evaluating them deterministically.  Our experimental and
+theoretical results show that neither method is entirely satisfactory. The
+adjusted mean target displays unhelpful boundary seeking behaviour, while
+directly sampling gradients turns out to be theoretically unsound. We hope that
+in the future the failure of these algorithms can be learned from so that we can
+properly account for uncertainty in stochastic surrogate modelling of the
+log-likelihood for Bayesian inference.  \end{abstract}
 
 \section{Introduction and Background}
 \subsection{Likelihood free and surrogate likelihood methods}
@@ -37,7 +38,7 @@ The challenge of performing Bayesian inference with intractable or expensive
 likelihood functions has been approached from multiple directions in the past.
 Rasmussen \cite{rasmussen2003gaussian} suggests making proposals using HMC
 applied to a surrogate model of the log posterior and then performing a Metropolis-Hastings
-accept-reject with an evaluations of the true likelihood. However, it is not
+accept-reject with evaluations of the true likelihood. However, it is not
 clear that this scheme has the correct stationary distribution. Christen \& Fox
 \cite{Christen01122005} introduced delayed acceptance MCMC which similarly
 makes proposals using a surrogate, but uses a pre-screening step to ensure that
@@ -56,33 +57,32 @@ ABC and likelihood free methods in that the surrogate model is based on true
 evaluations of the likelihood.
 % TODO - comparison with ABC
 \subsection{Gaussian Processes}
-Gaussian processes (GP) modelling is a type of non-parametric Bayesian model. It can
+Gaussian processes (GP) modelling (see \cite{rasmussen2006gaussian}) is a type of non-parametric Bayesian modelling. It can
 be viewed as placing a Gaussian process prior on a function, i.e. observations 
 $y_1, y_2, \ldots, y_n$ at any finite set of input points $x_1, x_2, \ldots x_n$
-are distributed according to a multivariate normal distribution.  Via the
-Kolmogorov extension theorem, such a prior is fully specified by a mean function
+are distributed according to a multivariate normal distribution. Such a prior is fully specified by a mean function
 $\mu(x)$ and the covariance function $k(x,x')$. Given a set of training points
 $x_1, \ldots, x_n$, inference at a set of test points $x'_1, \ldots, x'_m$ is
 found by computing the conditional distribution of $y_1', \ldots,  y'_m$ given 
-$y_1, \ldots, y_n$. The resulting poisterior distribution sees
+$y_1, \ldots, y_n$. The resulting posterior distribution sees
 $[y'_1, \ldots, y'_m]^\top \sim \Norm(\mu', K')$ where $\mu'$ and $K'$ are
-given by the inference equations \cite{rasmussen2006gaussian}
+given by the inference equations 
 \begin{align}
     \mu' &= \mu + k^\ast (K+\sigma^2 I)^{-1} \vec y \\
-    K' &= k^{\ast\ast} - k^\ast (K + \sigma^2 I)^{-1} \vec y
+    K' &= k^{\ast\ast} - k^\ast (K + \sigma^2 I)^{-1} k^{\ast\top}
 \end{align}
 Where $\mu$ represents the prior mean, $k^{\ast\ast}_{ij} = k(x'_i, x'_j)$ 
-gives the prior covariance, $k^\ast_{ij} = k(x'_i, x_j)$ the cross-covariance
-and $\vec y_i = y_i$ the vector of observations, and $\sigma^2$ represents \iid
-observational noise (even when there is no noise, a small amount of noise may be
-included for numerical stability of the inverse). An important feature of
+gives the prior covariance, $k^\ast_{ij} = k(x'_i, x_j)$ the cross-covariance,
+$\vec y$ the vector of observations, and $\sigma^2$ represents \iid
+observational noise. Even when there is no noise, a small amount of noise may be
+included for numerical stability of the inverse. An important feature of
 Gaussian process modelling is that in addition to giving estimates at new test
 points through the posterior mean, it also quantifies uncertainty through
-the posterior covarianace.
+the posterior covariance.
 
-We will consider GP's from two perspectives. Firstly bayesian
-hyperparameter inference in GP's provides a good test case where the likelihood
-evaluation can be prohibitive. Secondly GP's can themselves be used as a
+We will consider GPs from two perspectives. Firstly, Bayesian
+hyperparameter inference in GPs provides a good test case where the likelihood
+evaluation can be prohibitive. Secondly GPs can themselves be used as a
 surrogate model for the likelihood that quantifies uncertainty at unobserved
 locations.
 
@@ -90,7 +90,7 @@ locations.
 Typically the covariance function used for GP inference belongs to a parametric
 family. For example, the squared-exponential family in one-dimension has the form
 $k(x,x') = \sigma_f^2 \exp\left(-\frac 1 2 \left( \frac{x-x'}{\ell} \right)^2 \right)$
-with hyperparametgers $\sigma^2_f$ and $\ell$. It is most common to choose these
+with hyperparameters $\sigma^2_f$ and $\ell$. It is most common to choose these
 parameters given the data by maximizing the so-called log-marginal likelihood,
 i.e. the likelihood of the observations after marginalizing over the unobserved
 latent function. With observation noise, this function becomes
@@ -100,7 +100,7 @@ latent function. With observation noise, this function becomes
 \end{align}
 
 An alternative to using MLE is to place a prior over the hyperparameters, and
-then perform inference by averaging over the hyperparamter posterior. Our target
+then perform inference by averaging over the hyperparameter posterior. Our target
 then becomes
 \begin{align}
     \log p(\theta|y) &= \log p(\theta ) -\frac 1 2 y ^\top (K + \sigma^2 I)^{-1} y - \frac 1 2 \log |K+\sigma^2 I| 
@@ -108,14 +108,14 @@ then becomes
 \end{align}
 Some of the major challenges with sampling from such a distribution include
 multi-modality and the computational cost of computing matrix solves and
-determinants. The latter can be a particular challenge in the case of GP's with
+determinants. The latter can be a particular challenge in the case of GPs with
 large numbers of observations, particularly since their cost scales as 
 $O(n^3)$.
 
 \section{Algorithms}
 \subsection{Set up and motivation}
-Consider a Bayesian inference problem with expensive likelihood such as the GP
-problem desribed above. The first premise of this work, who's validity may be explored
+Consider a Bayesian inference problem with an expensive likelihood such as the GP
+problem described above. The first premise of this work, whose validity may be explored
 in future work, is that in the expensive likelihood regime, Bayesian inference
 should be separated into two parts
 \begin{itemize}
@@ -135,12 +135,12 @@ should be separated into two parts
 % \emph{that incorporates uncertainty}.
 
 \subsection{Mean estimation}
-The most obvious way to sample from the GP surrogate model is to use
+The most obvious way to sample from the GP surrogate model is
 to use the posterior mean as the log likelihood. That is, if the posterior mean
 is given by $\mu(\theta)$ we take $\hat l(\theta) = \mu(\theta)$ so that the
 likelihood is given by
-$\mathcal L(\theta) = \exp(\mu(\theta))$. Another method is is to consider the posterior
-mean of $f$ itself. Noting that $f(\theta)$ is marginally log-normal it has
+$\mathcal L(\theta) = \exp(\mu(\theta))$. Another method is to consider the posterior
+mean of $f$ itself. Note that $f(\theta)$ is marginally log-normal so it has
 expectation
 $\E f(\theta) = \exp\left(\mu(\theta) + \frac 1 2 \sigma^2(\theta) \right)$,
 giving log-likelihood $\hat l(\theta) = \mu(\theta) + \frac 1 2 \sigma^2 (\theta)$.
@@ -154,7 +154,7 @@ gradient instead of using a fixed surrogate model in order to reflect
 uncertainty in the surrogate model. Importantly, we note that the gradient of a
 GP and the function itself are jointly still a GP, so sampling amounts to
 sampling from a GP posterior. We restrict ourselves to uncorrected Langevin
-dynanamics because this requires only a single sample of the gradient. Sampling
+dynamics because this requires only a single sample of the gradient. Sampling
 a longer HMC trajectory would be significantly more expensive because each
 gradient sample would need to be taken conditional on the previous samples. With
 sample $i$ requiring a roughly $O(i^2)$ block matrix update to the inverse, the
@@ -166,17 +166,16 @@ single $O(m^2)$ matrix multiplication.
 \subsection{Theoretical accuracy}
 As discussed in \cite{stuart2018posterior}, the theoretical optimum model, in
 the sense of Hellinger distance, to sample from would be the \emph{joint}
-distribution over $f$ and $\theta$, i.e. we the model defined by the following
-generative process.  \begin{align} \log f &\sim \mathcal M \\ \theta &\sim
+distribution over $f$ and $\theta$, i.e. the model defined by the following
+generative process.  \begin{align} \log f &\sim \mathcal{GP}\\ \theta &\sim
 \frac{p_0(\theta)f(\theta)}{\mathcal Z(f)} \end{align} Unfortunately, sampling
 from this joint distribution is a difficult problem that our proposed methods
 only approximate in the well informed case.
 
-Firstly we consider our Langevin dynamics inspired sampler. This can be seen as
-an approximate Metropolis-within-Gibb's sampler where the marginal $f | \theta$
-is approximated by the $GP$ posterior. Indeed in the limit of small step sizes
-our update of $\theta$ preserves the target distribution. However,
-a true conditional update of $f$ would need to preserve (see derivation in Appendix)
+Firstly, we consider our Langevin dynamics inspired sampler. This can be seen as
+an approximate Metropolis-within-Gibbs sampler where the marginal $f | \theta$
+is approximated by the $GP$ posterior but \emph{not conditioned on $\theta$}.
+A true conditional update of $f$ would need to preserve (see derivation in Appendix)
 \begin{align}
     p(f|\theta) &= \frac{p(f, \theta)}{p(\theta)} \\
     &\propto \frac{p(f)f(\theta)}{\mathcal Z(f)}
@@ -184,7 +183,7 @@ a true conditional update of $f$ would need to preserve (see derivation in Appen
 
 On the other hand, if we approximate $\mathcal Z(f)$ as a constant, we recover
 the log mean sampler $\hat l(\theta) = \mu(\theta) + \frac 1 2 \sigma^2 (\theta)$.
-To see this note that integrating our joint distribution over $f$ we find
+To see this, note that integrating our joint distribution over $f$ we find
 \begin{align}
     p(\theta) &= \int p(f, \theta) df \\
     & \propto \int p_0(\theta)f(\theta)p(f) df \\
@@ -224,36 +223,41 @@ latter failing to account for the $\mathcal Z(f)$ term.
 % the generative model above it ignores the effect of the normalizing constant.
 
 \section{Experiments}
-Each method (GP mean, adjusted mean, sampled gradients) was tested for inference
-problems on the cartesian product of $n \in \{10, 100, 1000\}$, $d \in \{1, 5,
+Each method (GP mean, adjusted mean, sampled gradients) was tested on the Cartesian product of $n \in \{10, 100, 1000\}$, $d \in \{1, 5,
 50\}$ and $m \in \{10, 100\}$ where $n$ is the number of observations in the
 base model, $d$ the dimensionality of the base model and $m$ the number of
-observations to build the surrogate model. For $n \in \{10, 100\}$ the results
-were compared to using the true log-likelihood. Implementation was in Python and
+likelihood evaluations used to build the surrogate model. The surrogate model
+was built on random evaluations uniformly chosen in our parameter space. For $n \in \{10, 100\}$ the results
+were compared to a posterior sample computed using the true log-likelihood, but
+this was prohibitive for $n=1000$. Implementation was in Python and used    
 Stan \cite{standevstancore} for NUTS. Full code, results and details of the
-experiements can be found on
-\href{https://github.com/zach-lau/STAT547D-Project}{Github}. The Langevin
-sampler behaves overall poorly. This is not surpising in high dimensions given
+experiments can be found on
+\href{https://github.com/zach-lau/STAT547D-Project}{Github}
+\footnote{https://github.com/zach-lau/STAT547D-Project}. The Langevin
+sampler behaves overall poorly. This is not surprising in high dimensions given
 its local behaviour, however even in moderate dimension ($d=5$) it displays
 pathological behaviour (see Figure \ref{fig:pair}). This may be explained by the
 fact that it does not target the correct joint distribution. The most
-interesting result from the adjusted mean sampler is its boundary seeking
-behavour (see Fig \ref{fig:adjusted_explanation}). The long right-tail of the
+interesting result from the adjusted mean sampler is its occasional boundary seeking
+behaviour (see Figure \ref{fig:adjusted_explanation}). The long right-tail of the
 log-normal distribution encourages it to sample from areas of high-variance even
-when this is of detrimant to its qualitative results. We hypothesize that this
-is related to target's failure to account for the normalizing factor $\mathcal
-Z(f)$ which tempers the strength of the upper tail.
+when this is of detriment to its qualitative results. We hypothesize that this
+is related to the target's failure to account for the normalizing factor $\mathcal
+Z(f)$ which tempers the strength of the upper tail. Overall the mean-model
+performs decently, displaying few pathological behaviours. It could likely be
+improved by more judicious choices of likelihood evaluations. This is a possible
+future area of research.
 
 \section{Conclusion}
 In this project we provide a renewed exploration of the idea of using stochastic
 surrogate models of the likelihood function in Bayesian inference, particularly
 with a focus on Bayesian inference for Gaussian process hyperparameter learning.
-We propose two basic algorithms to incorporate uncertainty: incorporating
+We propose two basic algorithms to incorporate uncertainty: incorporating it
 through the mean of a log-normal or through sampling. While both methods have
 experimental and theoretical shortfalls, we hope this opens the door for future
 research on understanding how surrogate models which quantify uncertainty can
 be used in Bayesian inference. In particular, another promising area of research
-we have not yet considered is how to acquire the log-likelhood evaluations used to
+we have not yet explored is how to acquire the log-likelihood evaluations used to
 build the surrogate model in the first place.
 
 % Specifically we envision two areas of future
@@ -269,30 +273,32 @@ build the surrogate model in the first place.
 
 \appendix
 \section{Target conditional}
-Given the generative model, we get joint distribution
+Given our generative model, we get joint distribution
 \begin{align}
     p(f, \theta) &= p(f)\frac{p_0(\theta)f(\theta)}{\mathcal Z(f)}
 \end{align}
 Where the normalizing constant
 $\mathcal Z(f) = \int p_0(\theta)f(\theta) d\theta$.
-This gives the $\theta$ marginal of 
+This gives the $\theta$ marginal as
 \begin{align}
     p(\theta) &= \int p(f) \frac{p_0(\theta)f(\theta)}{\mathcal Z(f)} df \\
     &= p_0(\theta)  \int p(f) \frac{f(\theta)}{\mathcal Z(f)} df
 \end{align}
-And then the conditional is
+The conditional distribution of $f|\theta$ is given by
 \begin{align}
     p(f | \theta) \propto \frac{p(f)f(\theta)}{\mathcal Z(f)}
 \end{align}
 Intuitively this skews $f$ higher at the current value of $\theta$, but this
-scaling is tempered by the subsequent increase in the normalizing constant. If
-we assume that $\mathcal Z(f)$ is relatively constant, then sampling
-$f(\theta) | \theta$ corresponds to sampling from
-$p(y) \propto y \log \Norm(\mu, \sigma^2)$ which corresponds to the tilted
-log normal $\log \Norm(\mu + \sigma^2, \sigma^2)$.
+scaling is tempered by the subsequent increase in the normalizing constant.
+
+% If
+% we assume that $\mathcal Z(f)$ is relatively constant, then sampling
+% $f(\theta) | \theta$ corresponds to sampling from
+% $p(y) \propto y \log \Norm(\mu, \sigma^2)$ which corresponds to the tilted
+% log normal $\log \Norm(\mu + \sigma^2, \sigma^2)$.
 
 \section{Algorithms}
-Algorithm \ref{alg:unadjusted} shows the algoritm we use for uncorrected
+Algorithm \ref{alg:unadjusted} is used for uncorrected
 Langevin dynamics using GP sampled gradients. In implementation step size is
 scaled down proportional to the standard deviation of observed log-likelihoods.
 \begin{algorithm}
@@ -348,10 +354,10 @@ scaled down proportional to the standard deviation of observed log-likelihoods.
     \end{subfigure}
     \caption{Pair plots for different methods of sampling from GP surrogate
     model where the base model has $n=10$ observations in $d=5$ dimensions and
-    the surrogate log-likelhood model is built on $m=100$ likelihood
+    the surrogate log-likelihood model is built on $m=100$ likelihood
     evaluations. We can see the boundary seeking behaviour inherent in using the
     adjusted mean sampler. Furthermore the Langevin dynamics based sampler
-    displays a combination of poor mixig and bizarrely invents multimodality.
+    displays a combination of poor mixing and bizarrely invents multimodality.
     Note that due to the $O(n^3)$ cost of evaluating the true likelihood and
     $O(m^2)$ of evaluating the surrogate it may sometimes make sense to have $m
     > n$, although this particular example is somewhat unrealistic.}
@@ -367,25 +373,25 @@ scaled down proportional to the standard deviation of observed log-likelihoods.
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/adjusted/trace.png}
         \caption{Adjusted mean}
-        \label{fig:pair_adjusted}
+        \label{fig:trace_adjusted}
     \end{subfigure}
     \begin{subfigure}{0.45\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/gold/trace.png}
         \caption{``True'' likelihood}
-        \label{fig:pair_gold}
+        \label{fig:trace_gold}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/langevin/trace.png}
         \caption{Langevin}
-        \label{fig:pair_langevin}
+        \label{fig:trace_langevin}
     \end{subfigure}
     \begin{subfigure}{0.4\textwidth}
         \centering
         \includegraphics[width=\linewidth]{10-5-100-123/mean/trace.png}
         \caption{GP Mean}
-        \label{fig:pair_mean}
+        \label{fig:trace_mean}
     \end{subfigure}
     \caption{Traceplots and marginals of different algorithms for sampling
     from GP surrogate with $n=10$, $d=5$ and surrogate model based on $m=100$.}
@@ -410,7 +416,7 @@ theta[5] & 0.56 & 2.66 & -2.26 & 5.00 & 1.32 & 0.72 & 5.0 & 23.0 & 2.42 \\
 \caption{Posterior summary statistics for adjusted mean target sampled
 with NUTS. Boundary effects
 induce multi-modality which makes this problem particularly hard to deal with
-for the sampler, as reflected in the ESS and Rhat.}
+for the sampler, as reflected in the low ESS and high Rhat for many variables.}
 \label{tab:adjusted}
 \end{table}
 
@@ -466,7 +472,9 @@ due to random walk behaviour.}
     likelihood for a base model with $n=10$ observations in $d=1$ dimension with
     $m=10$ likelihood evaluations. The likelihood evaluations used to build
     the surrogate model are shown in red. The effective likelihood has higher
-    density in both areas of higher mean and standard deviation.}
+    density in both areas of higher mean and standard deviation. The sample on
+    the right targets the posterior arising from using the adjusted mean likelihood
+    with a standard normal prior.}
     \label{fig:adjusted_explanation}
 \end{figure}
 
